@@ -59,3 +59,8 @@ export const verification = pgTable("verification", {
         .$onUpdate(() => /* @__PURE__ */ new Date())
         .notNull(),
 });
+
+export const workflow = pgTable("workflow", {
+    id: text("id").primaryKey(),
+    name: text("name").notNull()
+})
