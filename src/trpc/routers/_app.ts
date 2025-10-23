@@ -1,25 +1,23 @@
-import { z } from 'zod';
+import { db } from '@/db';
 import { baseProcedure, createTRPCRouter, protectedProcedure } from '../init';
-import { inngest } from '@/inngest/client';
+import { workflowsRouter } from '@/features/workflows/server/routers';
+import { eq, getTableColumns } from 'drizzle-orm';
+import { user } from '@/db/schema';
+
+
+
 export const appRouter = createTRPCRouter({
-    // find all workflows of the user
-    getWorkflows: protectedProcedure.query(({ ctx }) => {
-        // return workflows
-    }),
+    workflows: workflowsRouter,
 
-    // create a workflow
-    createWorkflow: protectedProcedure.mutation(({ ctx }) => {
-        // create workflow logic
-    }),
+    getUsers: protectedProcedure
+        .query(async ({ ctx }) => {
+            const [existingUser] = await db
+                .select(getTableColumns(user))
+                .from(user)
+                .where(eq(user.id, ctx.auth.user.id));
 
-    testAi: baseProcedure.mutation(async () => {
-        await inngest.send({
-            name: "execute-ai"
-        });
-
-        return { success: true, message: "job queued" }
-    })
-
+            return existingUser;
+        })
 });
 
 
