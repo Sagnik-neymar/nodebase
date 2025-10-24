@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { TRPCReactProvider } from "@/trpc/client";
+import { NuqsAdapter } from 'nuqs/adapters/next/app'
+import { type ReactNode } from 'react'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,8 +32,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <TRPCReactProvider>
-          <Toaster />
-          {children}
+          <NuqsAdapter>
+            {children}
+            <Toaster />
+          </NuqsAdapter>
         </TRPCReactProvider>
       </body>
     </html >

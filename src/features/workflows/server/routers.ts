@@ -3,8 +3,10 @@ import { user, workflow } from "@/db/schema";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { generateSlug } from "random-word-slugs";
 import z from "zod";
-import { and, eq, getTableColumns } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, ilike } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+import { PAGINATION } from "@/config/constants";
+import { count } from "drizzle-orm";
 
 
 
@@ -90,16 +92,50 @@ export const workflowsRouter = createTRPCRouter({
 
     // fetch all workflows of a user
     getMany: protectedProcedure
-        .query(async ({ ctx }) => {
+        .input(z.object({
+            page: z.number().default(PAGINATION.DEFAULT_PAGE),    // current page
+            pageSize: z.number().min(PAGINATION.MIN_PAGE_SIZE).max(PAGINATION.MAX_PAGE_SIZE).default(PAGINATION.DEFAULT_PAGE_SIZE),
+            search: z.string().default("")
+        }))
+        .query(async ({ ctx, input }) => {
+            const { page, pageSize, search } = input;
 
-            const data = await db
+            const [items] = await db
                 .select(getTableColumns(workflow))
                 .from(workflow)
-                .where(eq(workflow.userId, ctx.auth.user.id));
+                .where(and(
+                    eq(workflow.userId, ctx.auth.user.id),
+                    input.search ? ilike(workflow.name, `%${search}%`) : undefined,
+                ))
+                .orderBy(desc(workflow.name), desc(workflow.id))
+                .limit(pageSize)
+                .offset((page - 1) * pageSize);
+
+            const [totalResult] = await db
+                .select({ count: count() })
+                .from(workflow)
+                .where(and(
+                    eq(workflow.userId, ctx.auth.user.id),
+                    input.search ? ilike(workflow.name, `%${search}%`) : undefined,
+                ));
 
 
-            return data;
-        })
+            const totalPages = Math.ceil(totalResult.count / pageSize);
+            const hasNextPage = page < totalPages;
+            const hasPreviousPage = page > 1;
+
+            return {
+                items,
+                totalPages,
+                totalCount: totalResult.count,
+                page,
+                pageSize,
+                hasNextPage,
+                hasPreviousPage,
+            };
+        }),
+
+
 
 
 })
