@@ -36,3 +36,21 @@ export const useCreateWorkflow = () => {
         })
     )
 }
+
+
+// hook to delete a workflow
+export const useRemoveworkflow = () => {
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    return useMutation(
+        trpc.workflows.remove.mutationOptions({
+            onSuccess: (data) => {
+                toast.success(`workflow "${data.name}" deleted`)
+                queryClient.invalidateQueries(trpc.workflows.getMany.queryOptions({}));
+                queryClient.invalidateQueries(trpc.workflows.getOne.queryFilter({ id: data.id }));
+
+            }
+        })
+    )
+}
