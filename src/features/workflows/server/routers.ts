@@ -92,48 +92,64 @@ export const workflowsRouter = createTRPCRouter({
 
     // fetch all workflows of a user
     getMany: protectedProcedure
-        .input(z.object({
-            page: z.number().default(PAGINATION.DEFAULT_PAGE),    // current page
-            pageSize: z.number().min(PAGINATION.MIN_PAGE_SIZE).max(PAGINATION.MAX_PAGE_SIZE).default(PAGINATION.DEFAULT_PAGE_SIZE),
-            search: z.string().default("")
-        }))
+        .input(
+            z.object({
+                page: z.number().default(PAGINATION.DEFAULT_PAGE),
+                pageSize: z
+                    .number()
+                    .min(PAGINATION.MIN_PAGE_SIZE)
+                    .max(PAGINATION.MAX_PAGE_SIZE)
+                    .default(PAGINATION.DEFAULT_PAGE_SIZE),
+                search: z.string().default(""),
+            })
+        )
         .query(async ({ ctx, input }) => {
             const { page, pageSize, search } = input;
 
-            const [items] = await db
-                .select(getTableColumns(workflow))
-                .from(workflow)
-                .where(and(
-                    eq(workflow.userId, ctx.auth.user.id),
-                    input.search ? ilike(workflow.name, `%${search}%`) : undefined,
-                ))
-                .orderBy(desc(workflow.name), desc(workflow.id))
-                .limit(pageSize)
-                .offset((page - 1) * pageSize);
+            // --- perform both queries in parallel ---
+            const [items, totalCountResult] = await Promise.all([
+                db
+                    .select(getTableColumns(workflow))
+                    .from(workflow)
+                    .where(
+                        and(
+                            eq(workflow.userId, ctx.auth.user.id),
+                            search ? ilike(workflow.name, `%${search}%`) : undefined
+                        )
+                    )
+                    .orderBy(desc(workflow.name), desc(workflow.id))
+                    .limit(pageSize)
+                    .offset((page - 1) * pageSize),
 
-            const [totalResult] = await db
-                .select({ count: count() })
-                .from(workflow)
-                .where(and(
-                    eq(workflow.userId, ctx.auth.user.id),
-                    input.search ? ilike(workflow.name, `%${search}%`) : undefined,
-                ));
+                db
+                    .select({ count: count() })
+                    .from(workflow)
+                    .where(
+                        and(
+                            eq(workflow.userId, ctx.auth.user.id),
+                            search ? ilike(workflow.name, `%${search}%`) : undefined
+                        )
+                    ),
+            ]);
 
+            // --- extract total count safely ---
+            const totalCount = Number(totalCountResult[0]?.count ?? 0);
 
-            const totalPages = Math.ceil(totalResult.count / pageSize);
+            const totalPages = Math.ceil(totalCount / pageSize);
             const hasNextPage = page < totalPages;
             const hasPreviousPage = page > 1;
 
             return {
                 items,
                 totalPages,
-                totalCount: totalResult.count,
+                totalCount,
                 page,
                 pageSize,
                 hasNextPage,
                 hasPreviousPage,
             };
         }),
+
 
 
 
