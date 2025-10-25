@@ -57,7 +57,7 @@ export const workflowsRouter = createTRPCRouter({
                 .set(input)
                 .where(and(
                     eq(workflow.id, input.id),
-                    eq(user.id, ctx.auth.user.id)
+                    eq(workflow.userId, ctx.auth.user.id)
                 ))
                 .returning();
 
