@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { user, workflow } from "@/db/schema";
+import { connection, node, nodeType, user, workflow } from "@/db/schema";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { generateSlug } from "random-word-slugs";
 import z from "zod";
@@ -7,6 +7,8 @@ import { and, desc, eq, getTableColumns, ilike } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { PAGINATION } from "@/config/constants";
 import { count } from "drizzle-orm";
+
+import type { Node, Edge } from "@xyflow/react";
 
 
 
@@ -23,7 +25,20 @@ export const workflowsRouter = createTRPCRouter({
                 })
                 .returning();
 
-            return createdWorkflow;
+            const [initialNode] = await db
+                .insert(node)
+                .values({
+                    name: "INITIAL",
+                    type: "INITIAL",
+                    position: { x: 0, y: 0 },
+                    workflowId: createdWorkflow.id
+                })
+                .returning();
+
+            return {
+                ...createdWorkflow,    // this way output shape remains intact with just an addition of all the node attributes
+                initialNode
+            };
         }),
 
     // delete a workflow
@@ -75,7 +90,7 @@ export const workflowsRouter = createTRPCRouter({
         .query(async ({ ctx, input }) => {
 
             const [existingWorkflow] = await db
-                .select(getTableColumns(workflow))
+                .select()
                 .from(workflow)
                 .where(and(
                     eq(workflow.id, input.id),
@@ -87,7 +102,39 @@ export const workflowsRouter = createTRPCRouter({
                 message: "workflow not found"
             });
 
-            return existingWorkflow;
+            const existingNodes = await db
+                .select()
+                .from(node)
+                .where(eq(node.workflowId, existingWorkflow.id));
+
+            // Transform server nodes to react-flow compatible nodes
+            const nodes: Node[] = existingNodes.map((node) => ({
+                id: node.id,
+                type: node.type,
+                position: node.position as { x: number, y: number },
+                data: (node.data as Record<string, unknown>)
+            }));
+
+            const existingConnections = await db
+                .select()
+                .from(connection)
+                .where(eq(connection.workflowId, existingWorkflow.id));
+
+            // Transform server connections to react-flow compatible connections
+            const edges: Edge[] = existingConnections.map((connection) => ({
+                id: connection.id,
+                source: connection.fromNodeId,
+                target: connection.toNodeId,
+                sourceHandle: connection.fromOutput,
+                targetHandle: connection.toInput
+            }));
+
+            return {
+                id: existingWorkflow.id,
+                name: existingWorkflow.name,
+                nodes,
+                edges
+            };
         }),
 
     // fetch all workflows of a user
@@ -109,7 +156,7 @@ export const workflowsRouter = createTRPCRouter({
             // --- perform both queries in parallel ---
             const [items, totalCountResult] = await Promise.all([
                 db
-                    .select(getTableColumns(workflow))
+                    .select()
                     .from(workflow)
                     .where(
                         and(

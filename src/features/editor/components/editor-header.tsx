@@ -36,13 +36,13 @@ export const EditorNameInput = ({ workflowId }: { workflowId: string }) => {
     const updateWorkflow = useUpdateWorkflowName();
 
     const [isEditing, setIsEditing] = useState(false);
-    const [name, setName] = useState(workflow.name);
+    const [name, setName] = useState<string>(() => String(workflow.name ?? ""));
 
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (workflow.name) {
-            setName(workflow.name);
+            setName(String(workflow.name));
         }
     }, [workflow.name]);
 
@@ -54,7 +54,7 @@ export const EditorNameInput = ({ workflowId }: { workflowId: string }) => {
     }, [isEditing]);
 
     const handleSave = async () => {
-        if (name === workflow.name) {
+        if (name === String(workflow.name)) {
             setIsEditing(false);
             return;
         }
@@ -64,7 +64,7 @@ export const EditorNameInput = ({ workflowId }: { workflowId: string }) => {
         try {
             await updateWorkflow.mutateAsync({ id: workflowId, name });
         } catch (error) {
-            setName(workflow.name);
+            setName(String(workflow.name));
         }
     };
 
@@ -72,7 +72,7 @@ export const EditorNameInput = ({ workflowId }: { workflowId: string }) => {
         if (e.key === "Enter") {
             handleSave();
         } else if (e.key === "Escape") {
-            setName(workflow.name);
+            setName(String(workflow.name));
             setIsEditing(false);
         }
     };
@@ -91,7 +91,7 @@ export const EditorNameInput = ({ workflowId }: { workflowId: string }) => {
                     className="h-7 w-auto min-w-[100px] px-2"
                 />
             ) : (
-                <span onClick={() => setIsEditing(true)}>{workflow.name}</span>
+                <span onClick={() => setIsEditing(true)}>{String(workflow.name)}</span>
             )}
         </BreadcrumbItem>
     );

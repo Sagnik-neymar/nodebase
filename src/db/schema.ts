@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, pgEnum, json, jsonb } from "drizzle-orm/pg-core";
 import { nanoid } from "nanoid"
 
 export const user = pgTable("user", {
@@ -66,6 +66,51 @@ export const workflow = pgTable("workflow", {
     name: text("name").notNull(),
     userId: text("userId").notNull().references(() => user.id, { onDelete: "cascade" }),
 
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+})
+
+
+
+///////////////////////////////////////////////////// React flow stuff //////////////////////////////////////////
+
+
+export const nodeTypeEnum = pgEnum("node_type", [
+    "INITIAL"
+])
+
+export const nodeType = {
+    INITIAL: "INITIAL",
+} as const;
+
+
+// reperesents Nodes
+export const node = pgTable("node", {
+    id: text("id").primaryKey().$defaultFn(() => nanoid()),
+    workflowId: text("workflowId").notNull().references(() => workflow.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    type: nodeTypeEnum("type").notNull(),   // maybe needs fixing
+    position: json("position").notNull(),
+    data: json("data").default("{}"),
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+})
+
+
+// represents Edges
+export const connection = pgTable("connection", {
+    id: text("id").primaryKey().$defaultFn(() => nanoid()),
+    workflowId: text("workflowId").notNull().references(() => workflow.id, { onDelete: "cascade" }),
+
+    fromNodeId: text("fromNodeId").notNull().references(() => node.id, { onDelete: "cascade" }).unique(),
+    fromNode: text("fromNode").notNull().references(() => node.id, { onDelete: "cascade" }),
+    toNodeId: text("toNodeId").notNull().references(() => node.id, { onDelete: "cascade" }).unique(),
+    toNode: text("toNode").notNull().references(() => node.id, { onDelete: "cascade" }),
+
+    fromOutput: text("fromOutput").default("main").unique(),
+    toInput: text("toInput").default("main").unique(),
+    
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
 })
