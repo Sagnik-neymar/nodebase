@@ -76,11 +76,15 @@ export const workflow = pgTable("workflow", {
 
 
 export const nodeTypeEnum = pgEnum("node_type", [
-    "INITIAL"
+    "INITIAL",
+    "MANUAL_TRIGGER",
+    "HTTP_REQUEST"
 ])
 
 export const nodeType = {
     INITIAL: "INITIAL",
+    MANUAL_TRIGGER: "MANUAL_TRIGGER",
+    HTTP_REQUEST: "HTTP_REQUEST",
 } as const;
 
 
