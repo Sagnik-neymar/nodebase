@@ -1,27 +1,38 @@
 import { cn } from "@/lib/utils";
 import { forwardRef, type HTMLAttributes } from "react";
+import { NodeStatus } from "./node-status-indicator";
+import { CheckCircle2Icon, Loader2Icon, XCircleIcon } from "lucide-react";
+
+
+interface baseNodeProps extends HTMLAttributes<HTMLDivElement> {
+  status?: NodeStatus;
+}
+
 
 export const BaseNode = forwardRef<
   HTMLDivElement,
-  HTMLAttributes<HTMLDivElement>
+  baseNodeProps
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
-      "relative rounded-md border bg-card text-card-foreground",
-      "hover:ring-1",
-      // React Flow displays node elements inside of a `NodeWrapper` component,
-      // which compiles down to a div with the class `react-flow__node`.
-      // When a node is selected, the class `selected` is added to the
-      // `react-flow__node` element. This allows us to style the node when it
-      // is selected, using Tailwind's `&` selector.
-      "[.react-flow\\_\\_node.selected_&]:border-muted-foreground",
-      "[.react-flow\\_\\_node.selected_&]:shadow-lg",
+      "relative rounded-sm border border-muted-foreground bg-card text-card-foreground hover:bg-accent shadow-md border-none transition-all",
       className,
     )}
     tabIndex={0}
     {...props}
-  />
+  >
+    {props.children}
+    {props.status === "error" && (
+      <XCircleIcon className="absolute right-0.5 bottom-0.5 size-2 text-red-500 stroke-3" />
+    )}
+    {props.status === "success" && (
+      <CheckCircle2Icon className="absolute right-0.5 bottom-0.5 size-2 text-emerald-500 stroke-3" />
+    )}
+    {props.status === "loading" && (
+      <Loader2Icon className="absolute -right-0.5 -bottom-0.5 size-2 text-sky-500 stroke-3 animate-spin" />
+    )}
+  </div>
 ));
 BaseNode.displayName = "BaseNode";
 

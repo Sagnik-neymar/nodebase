@@ -1,3 +1,7 @@
+// this shows the use of transactions.
+// neon HTTP doesnt support transactions
+//use none websocket instead to use transactions.
+
 import { db } from "@/db";
 import { connection, node, user, workflow } from "@/db/schema";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
@@ -101,46 +105,51 @@ export const workflowsRouter = createTRPCRouter({
                 message: "workflow not found"
             });
 
-            // better to encase this logic in a single transaction (use neon-ws instead of neon-HTTP for that)
-            // Delete existing nodes and conections (cascade deletes connections)
-            await db
-                .delete(node)
-                .where(eq(node.workflowId, existingWorkflow.id));
+            // transaction to ensure consistency (convert react-flow nodes to db compatible nodes and connections)
+            return await db.transaction(async (tx) => {
+                // Delete existing nodes and conections (cascade deletes connections)
+                await tx
+                    .delete(node)
+                    .where(eq(node.workflowId, existingWorkflow.id));
 
-            // create nodes
-            if (nodes.length > 0) {
-                await db.insert(node).values(
-                    nodes.map((n) => ({
-                        id: n.id,
-                        workflowId: id,
-                        name: n.type || "unknown",
-                        type: n.type as NodeTypeValue,
-                        position: n.position,
-                        data: n.data || {},
-                    }))
-                );
-            }
+                // create nodes
+                await tx
+                    .insert(node)
+                    .values(
+                        nodes.map((n) => ({
+                            id: n.id,
+                            workflowId: id,
+                            name: n.type || "unknown",
+                            type: n.type as NodeTypeValue,
+                            position: n.position,
+                            data: n.data || {},
+                        }))
+                    )
+                    .returning();
 
-            // create connections
-            if (edges.length > 0) {
-                await db.insert(connection).values(
-                    edges.map((e) => ({
-                        workflowId: id,
-                        fromNodeId: e.source,
-                        toNodeId: e.target,
-                        fromOutput: e.sourceHandle || "main",
-                        toInput: e.targetHandle || "main",
-                    }))
-                );
-            }
+                // create connections
+                await tx
+                    .insert(connection)
+                    .values(
+                        edges.map((e) => ({
+                            workflowId: id,
+                            fromNodeId: e.source,
+                            toNodeId: e.target,
+                            fromOutput: e.sourceHandle || "main",
+                            toInput: e.targetHandle || "main",
+                        })),
+                    )
+                    .returning();
 
-            // update timestamps for the workflow
-            await db
-                .update(workflow)
-                .set({ updatedAt: new Date() })
-                .where(eq(workflow.id, existingWorkflow.id))
+                // update timestamps for the workflow
+                await tx
+                    .update(workflow)
+                    .set({ updatedAt: new Date() })
+                    .where(eq(workflow.id, existingWorkflow.id))
+                    .returning();
 
-            return existingWorkflow;
+                return existingWorkflow;
+            });
         }),
 
     // update name of workflow

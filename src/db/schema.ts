@@ -87,6 +87,8 @@ export const nodeType = {
     HTTP_REQUEST: "HTTP_REQUEST",
 } as const;
 
+export type NodeTypeValue = (typeof nodeType)[keyof typeof nodeType];
+
 
 // reperesents Nodes
 export const node = pgTable("node", {
@@ -107,10 +109,10 @@ export const connection = pgTable("connection", {
     id: text("id").primaryKey().$defaultFn(() => nanoid()),
     workflowId: text("workflowId").notNull().references(() => workflow.id, { onDelete: "cascade" }),
 
-    fromNodeId: text("fromNodeId").notNull().references(() => node.id, { onDelete: "cascade" }).unique(),
-    fromNode: text("fromNode").notNull().references(() => node.id, { onDelete: "cascade" }),
-    toNodeId: text("toNodeId").notNull().references(() => node.id, { onDelete: "cascade" }).unique(),
-    toNode: text("toNode").notNull().references(() => node.id, { onDelete: "cascade" }),
+    fromNodeId: text("fromNodeId").references(() => node.id, { onDelete: "cascade" }),
+    //fromNode: text("fromNode").references(() => node.id, { onDelete: "cascade" }),
+    toNodeId: text("toNodeId").references(() => node.id, { onDelete: "cascade" }),
+    //toNode: text("toNode").references(() => node.id, { onDelete: "cascade" }),
 
     fromOutput: text("fromOutput").default("main").unique(),
     toInput: text("toInput").default("main").unique(),
